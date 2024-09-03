@@ -1,5 +1,6 @@
 package io.smallrye.llm.core.langchain4j.portableextension;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -22,14 +23,15 @@ import io.smallrye.llm.aiservice.CommonAIServiceCreator;
 import io.smallrye.llm.spi.RegisterAIService;
 
 public class LangChain4JAIServicePortableExtension implements Extension {
+
     private static final Logger LOGGER = Logger.getLogger(LangChain4JAIServicePortableExtension.class);
     private static final Set<Class<?>> detectedAIServicesDeclaredInterfaces = new HashSet<>();
-    private Set<AnnotatedType<?>> annotatedTypes = new HashSet<>();
-    private Set<InjectionPoint> componentInjectionPoints = new HashSet<>();
-    private Set<InjectionPoint> instanceInjectionPoints = new HashSet<>();
+    private final Set<AnnotatedType<?>> annotatedTypes = new HashSet<>();
+    private final Set<InjectionPoint> componentInjectionPoints = new HashSet<>();
+    private final Set<InjectionPoint> instanceInjectionPoints = new HashSet<>();
 
     public static Set<Class<?>> getDetectedAIServicesDeclaredInterfaces() {
-        return detectedAIServicesDeclaredInterfaces;
+        return Collections.unmodifiableSet(detectedAIServicesDeclaredInterfaces);
     }
 
     <T> void processAnnotatedType(@Observes @WithAnnotations({ RegisterAIService.class }) ProcessAnnotatedType<T> pat) {
@@ -82,22 +84,19 @@ public class LangChain4JAIServicePortableExtension implements Extension {
 
     private void addBean(AfterBeanDiscovery abd, Class<?> interfaceClass, RegisterAIService registerAiServiceAnnotation,
             boolean produce) {
-        if (!interfaceClass.isInterface() || registerAiServiceAnnotation == null)
-            return;
-
-        detectedAIServicesDeclaredInterfaces.add(interfaceClass);
-        BeanConfigurator<Object> bc = abd.addBean()
-                .scope(registerAiServiceAnnotation.scope())
-                .types(interfaceClass)
-                .name("registeredAIService-" + interfaceClass.getName()); //Without this, the container won't create a CreationalContext
-
-        if (produce) {
-            bc.produceWith(c -> CommonAIServiceCreator.create(CDI.current(), interfaceClass));
-        } else {
-            bc.createWith(c -> CommonAIServiceCreator.create(CDI.current(), interfaceClass));
+        if (interfaceClass.isInterface() && registerAiServiceAnnotation != null) {
+            detectedAIServicesDeclaredInterfaces.add(interfaceClass);
+            BeanConfigurator<Object> bc = abd.addBean()
+                    .scope(registerAiServiceAnnotation.scope())
+                    .types(interfaceClass)
+                    .name("registeredAIService-" + interfaceClass.getName()); //Without this, the container won't create a CreationalContext
+            if (produce) {
+                bc.produceWith(c -> CommonAIServiceCreator.create(c, interfaceClass));
+            } else {
+                bc.createWith(c -> CommonAIServiceCreator.create(CDI.current(), interfaceClass));
+            }
+            LOGGER.info("Added @RegisterAIService of interface type '" + interfaceClass.getName() + "' for "
+                    + (produce ? "instance" : "component") + " injection.");
         }
-
-        LOGGER.info("Added @RegisterAIService of interface type '" + interfaceClass.getName() + "' for "
-                + (produce ? "instance" : "component") + " injection.");
     }
 }

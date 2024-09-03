@@ -13,6 +13,7 @@ import io.smallrye.llm.core.langchain4j.core.config.spi.LLMConfigProvider;
 import io.smallrye.llm.spi.AISyntheticBeanCreatorClassProvider;
 
 public class LangChain4JPluginsBuildCompatibleExtension implements BuildCompatibleExtension {
+
     public static final Logger LOGGER = Logger.getLogger(LangChain4JPluginsBuildCompatibleExtension.class);
     public static final String PARAM_BEANNAME = "beanName";
     public static final String PARAM_TARGET_CLASS = "targetClass";
@@ -23,8 +24,9 @@ public class LangChain4JPluginsBuildCompatibleExtension implements BuildCompatib
     @SuppressWarnings({ "unused", "unchecked" })
     @Synthesis
     public void createSynthetics(SyntheticComponents syntheticComponents) throws ClassNotFoundException {
-        if (llmConfig == null)
+        if (llmConfig == null) {
             llmConfig = LLMConfigProvider.getLlmConfig();
+        }
         LOGGER.info("CDI BCE Langchain4j plugin");
 
         /*
@@ -36,7 +38,6 @@ public class LangChain4JPluginsBuildCompatibleExtension implements BuildCompatib
          * smallrye.llm.plugin.content-retriever.config.embedding-model.lookup-name=my-model
          */
         // get bean name like content-retiever or "my-model"
-
         CommonLLMPluginCreator.createAllLLMBeans(
                 llmConfig,
                 beanData -> {
@@ -52,8 +53,9 @@ public class LangChain4JPluginsBuildCompatibleExtension implements BuildCompatib
                             .withParam(PARAM_TARGET_CLASS, beanData.getTargetClass())
                             .withParam(PARAM_BUILDER_CLASS, beanData.getBuilderClass());
 
-                    for (Class<?> newInterface : beanData.getTargetClass().getInterfaces())
+                    for (Class<?> newInterface : beanData.getTargetClass().getInterfaces()) {
                         builder.type(newInterface);
+                    }
                 });
     }
 }

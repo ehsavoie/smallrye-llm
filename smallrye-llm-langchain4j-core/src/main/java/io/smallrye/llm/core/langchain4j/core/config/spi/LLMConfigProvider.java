@@ -12,8 +12,7 @@ public class LLMConfigProvider {
     private static volatile boolean initialized = false;
 
     static {
-        ServiceLoader<LLMConfig> loader = ServiceLoader.load(LLMConfig.class,
-                Thread.currentThread().getContextClassLoader());
+        ServiceLoader<LLMConfig> loader = ServiceLoader.load(LLMConfig.class, Thread.currentThread().getContextClassLoader());
         final List<LLMConfig> factories = new ArrayList<>();
         loader.forEach(factories::add);
         if (factories.isEmpty()) {

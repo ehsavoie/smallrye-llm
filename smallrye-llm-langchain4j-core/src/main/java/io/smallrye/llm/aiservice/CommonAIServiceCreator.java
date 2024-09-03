@@ -1,10 +1,12 @@
 package io.smallrye.llm.aiservice;
 
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.literal.NamedLiteral;
+import jakarta.servlet.http.HttpSession;
 
 import org.jboss.logging.Logger;
 
@@ -15,52 +17,54 @@ import dev.langchain4j.service.AiServices;
 import io.smallrye.llm.spi.RegisterAIService;
 
 public class CommonAIServiceCreator {
+
     private static final Logger LOGGER = Logger.getLogger(CommonAIServiceCreator.class);
 
+    @SuppressWarnings("unchecked")
     public static Object create(Instance<Object> lookup, Class<?> interfaceClass) {
         RegisterAIService annotation = interfaceClass.getAnnotation(RegisterAIService.class);
-        ChatLanguageModel chatLanguageModel = getChatLanguageModel(lookup, annotation);
-        ContentRetriever contentRetriever = getContentRetriever(lookup, annotation);
+        Instance<ChatLanguageModel> chatLanguageModel = getInstance(lookup, ChatLanguageModel.class,
+                annotation.chatLanguageModelName());
+        Instance<ContentRetriever> contentRetriever = getInstance(lookup, ContentRetriever.class,
+                annotation.contentRetrieverName());
         try {
-            AiServices<?> aiServices = AiServices.builder(interfaceClass)
-                    .chatLanguageModel(chatLanguageModel);
-
-            //This causes HuggingFace to throw an exception beceause tools return an empty collection.
-            if (annotation.tools() != null && annotation.tools().length > 0) {
-                aiServices.tools(Stream.of(annotation.tools())
-                        .map(c -> lookup.select(c).get())
-                        .collect(Collectors.toList()));
+            AiServices<?> aiServices = AiServices.builder(interfaceClass);
+            if (chatLanguageModel.isResolvable()) {
+                LOGGER.warn("ChatLanguageModel " + chatLanguageModel.get());
+                aiServices.chatLanguageModel(chatLanguageModel.get());
             }
-
-            aiServices.chatMemory(MessageWindowChatMemory.withMaxMessages(annotation.chatMemoryMaxMessages()));
-            if (contentRetriever != null)
-                aiServices.contentRetriever(contentRetriever);
-
+            if (contentRetriever.isResolvable()) {
+                LOGGER.warn("ContentRetriever " + contentRetriever.get());
+                aiServices.contentRetriever(contentRetriever.get());
+            }
+            if (annotation.tools() != null && annotation.tools().length > 0) {
+                List<Object> tools = new ArrayList<>(annotation.tools().length);
+                for (Class toolClass : annotation.tools()) {
+                    try {
+                        tools.add(toolClass.getConstructor(null).newInstance(null));
+                    } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException
+                            | IllegalArgumentException | InvocationTargetException ex) {
+                    }
+                }
+                aiServices.tools(tools);
+            }
+            Instance<HttpSession> session = lookup.select(jakarta.servlet.http.HttpSession.class);
+            if (session.isResolvable()) {
+                aiServices.chatMemory(MessageWindowChatMemory.builder().id(session.get().getId())
+                        .maxMessages(annotation.chatMemoryMaxMessages()).build());
+            }
             return aiServices.build();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static ChatLanguageModel getChatLanguageModel(Instance<Object> lookup, RegisterAIService annotation) {
-        LOGGER.info("getChatLanguageModel '" + annotation.chatLanguageModelName() + "'");
-        if (annotation.chatLanguageModelName().isBlank())
-            return lookup.select(ChatLanguageModel.class).get();
-        return lookup.select(ChatLanguageModel.class, NamedLiteral.of(annotation.chatLanguageModelName())).get();
-    }
-
-    private static ContentRetriever getContentRetriever(Instance<Object> lookup, RegisterAIService annotation) {
-        if (annotation.contentRetrieverModelName().isBlank()) {
-            Instance<ContentRetriever> contentRetrievers = lookup.select(ContentRetriever.class);
-
-            if (contentRetrievers.isResolvable())
-                return contentRetrievers.get();
+    private static Instance getInstance(Instance<Object> lookup, Class<?> type, String name) {
+        LOGGER.info("Getinstance of '" + type + "' with name '" + name + "'");
+        if (name == null || name.isBlank()) {
+            return lookup.select(type);
         }
-
-        Instance<ContentRetriever> contentRetrievers = lookup.select(ContentRetriever.class,
-                NamedLiteral.of(annotation.contentRetrieverModelName()));
-        if (contentRetrievers.isResolvable())
-            return contentRetrievers.get();
-        return null;
+        return lookup.select(type, NamedLiteral.of(name));
     }
+
 }

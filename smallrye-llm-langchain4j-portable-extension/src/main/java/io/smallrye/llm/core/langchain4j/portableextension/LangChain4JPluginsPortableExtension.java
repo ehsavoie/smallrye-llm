@@ -16,18 +16,20 @@ import io.smallrye.llm.core.langchain4j.core.config.spi.LLMConfigProvider;
 import io.smallrye.llm.plugin.CommonLLMPluginCreator;
 
 public class LangChain4JPluginsPortableExtension implements Extension {
+
     private static final Logger LOGGER = Logger.getLogger(LangChain4JPluginsPortableExtension.class);
     private LLMConfig llmConfig;
 
     void afterBeanDiscovery(@Observes AfterBeanDiscovery afterBeanDiscovery, BeanManager beanManager)
             throws ClassNotFoundException {
-        if (llmConfig == null)
+        if (llmConfig == null) {
             llmConfig = LLMConfigProvider.getLlmConfig();
+        }
 
         CommonLLMPluginCreator.createAllLLMBeans(
                 llmConfig,
                 beanData -> {
-                    LOGGER.info("Add Bean " + beanData.getTargetClass() + " " + beanData.getScopeClass() + " "
+                    LOGGER.warn("Add Bean " + beanData.getTargetClass() + " " + beanData.getScopeClass() + " "
                             + beanData.getBeanName());
 
                     afterBeanDiscovery.addBean()
@@ -36,11 +38,7 @@ public class LangChain4JPluginsPortableExtension implements Extension {
                             .scope(beanData.getScopeClass())
                             .name(beanData.getBeanName())
                             .qualifiers(NamedLiteral.of(beanData.getBeanName()))
-                            .produceWith(creationalContext -> CommonLLMPluginCreator.create(
-                                    creationalContext,
-                                    beanData.getBeanName(),
-                                    beanData.getTargetClass(),
-                                    beanData.getBuilderClass()));
+                            .produceWith(beanData.getCallback());
 
                     LOGGER.info("Types: " + beanData.getTargetClass() + ","
                             + Arrays.stream(beanData.getTargetClass().getInterfaces()).map(Class::getName)

@@ -46,6 +46,7 @@
         <weld-junit5.version>4.0.0.Final</weld-junit5.version>
         <version.weld>5.1.0.Final</version.weld>
         <version.org.jboss.logging>3.5.3.Final</version.org.jboss.logging>
+        <version.jakarta.servlet>6.1.0</version.jakarta.servlet>
         <microprofile-config-api.version>3.0.3</microprofile-config-api.version>
         <dev.langchain4j.version>0.33.0</dev.langchain4j.version>
         <maven.version>3.9.9</maven.version>
@@ -140,6 +141,12 @@
                 <groupId>org.eclipse.microprofile.config</groupId>
                 <artifactId>microprofile-config-api</artifactId>
                 <version>${microprofile-config-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.servlet</groupId>
+                <artifactId>jakarta.servlet-api</artifactId>
+                <version>${version.jakarta.servlet}</version>
+                <scope>provided</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -9,6 +9,7 @@ import java.lang.annotation.Target;
 
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.enterprise.inject.Stereotype;
+import jakarta.enterprise.util.Nonbinding;
 
 @Retention(RUNTIME)
 @Target(ElementType.TYPE)
@@ -24,4 +25,13 @@ public @interface RegisterAIService {
     String contentRetrieverModelName() default "";
 
     int chatMemoryMaxMessages() default 10;
+
+    @Nonbinding
+    String embeddingModelName() default "";
+
+    @Nonbinding
+    String embeddingStoreName() default "";
+
+    @Nonbinding
+    String contentRetrieverName() default "";
 }
